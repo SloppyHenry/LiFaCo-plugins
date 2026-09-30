@@ -15,8 +15,8 @@ from lifaco_plugin import Device, Mode, Plugin, Zone, run
 MAGIC = b"ORGB"
 CLIENT_PROTOCOL = 4
 REQUEST_CONTROLLER_COUNT, REQUEST_CONTROLLER_DATA, REQUEST_PROTOCOL_VERSION = 0, 1, 40
-SET_CLIENT_NAME, DEVICE_LIST_UPDATED = 50, 100
-UPDATE_LEDS, SET_CUSTOM_MODE, UPDATE_MODE = 1050, 1100, 1101
+SET_CLIENT_NAME, DEVICE_LIST_UPDATED, RESCAN_DEVICES = 50, 100, 140
+RESIZE_ZONE, UPDATE_LEDS, SET_CUSTOM_MODE, UPDATE_MODE = 1000, 1050, 1100, 1101
 FLAG_SPEED, FLAG_BRIGHTNESS, FLAG_PER_LED = 1 << 0, 1 << 4, 1 << 5
 COLOR_MODE_PER_LED, COLOR_MODE_SPECIFIC = 1, 2
 DEVICE_TYPES = {0: "mainboard", 1: "ram", 2: "gpu", 3: "cooler", 4: "strip", 5: "keyboard", 6: "mouse", 7: "other",
@@ -188,7 +188,9 @@ class OpenRgb(Plugin):
             modes = [Mode(m["name"], colors=m["colors_max"] if m["color_mode"] == COLOR_MODE_SPECIFIC else 0,
                           speed=bool(m["flags"] & FLAG_SPEED), brightness=bool(m["flags"] & FLAG_BRIGHTNESS))
                      for m in c["modes"] if m is not c["direct_mode"]]
-            zones = [Zone(z["name"], z["leds"]) for z in c["zones"]]
+            # Addressable headers: OpenRGB cannot know how many LEDs hang on them, the user sets it (resize_zone)
+            zones = [Zone(z["name"], z["leds"], z["leds_min"], z["leds_max"]) if z["leds_max"] > z["leds_min"]
+                     else Zone(z["name"], z["leds"]) for z in c["zones"]]
             if not c["zones"] and c["led_count"]:
                 zones = [Zone("All", c["led_count"])]
             devices.append(Device(did, c["name"], type=DEVICE_TYPES.get(c["type"], "other"), zones=zones, modes=modes,
@@ -225,6 +227,21 @@ class OpenRgb(Plugin):
         self._connect()
         self._send(UPDATE_MODE, struct.pack("<Ii", 8 + len(block), c["modes"].index(base)) + block, device=index)
         self.custom_mode.discard(device_id)
+
+    def resize_zone(self, device_id, zone, leds):
+        index, c = self.controllers[device_id]
+        z = c["zones"][zone]
+        if not z["leds_min"] <= leds <= z["leds_max"]:
+            raise ValueError(f"{z['name']} takes {z['leds_min']} to {z['leds_max']} LEDs")
+        self._connect()
+        self._send(RESIZE_ZONE, struct.pack("<ii", zone, leds), device=index)   # OpenRGB stores it in its settings
+        self.custom_mode.discard(device_id)
+        self.devices_changed()
+
+    def rescan(self):
+        """OpenRGB searches all hardware again (a few seconds); it tells us when the list has changed."""
+        self._connect()
+        self._send(RESCAN_DEVICES)
 
     def close(self):
         sock, self.sock = self.sock, None

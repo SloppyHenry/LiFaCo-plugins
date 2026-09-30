@@ -31,14 +31,23 @@ DEVICE_TYPES = ("mainboard", "gpu", "ram", "keyboard", "mouse", "cooler", "fan",
 
 
 class Zone:
-    """A named group of LEDs on a device (for example one fan header or one ring)."""
+    """A named group of LEDs on a device (for example one fan header or one ring).
 
-    def __init__(self, name, leds):
+    min_leds / max_leds: give both for a zone whose LED count the user sets (an addressable header where the number
+    of connected LEDs is unknown). LiFaCo then shows a field for it and calls resize_zone().
+    """
+
+    def __init__(self, name, leds, min_leds=None, max_leds=None):
         self.name = str(name)
         self.leds = int(leds)
+        self.min_leds = None if min_leds is None else int(min_leds)
+        self.max_leds = None if max_leds is None else int(max_leds)
 
     def to_dict(self):
-        return {"name": self.name, "leds": self.leds}
+        d = {"name": self.name, "leds": self.leds}
+        if self.min_leds is not None and self.max_leds is not None and self.max_leds > self.min_leds:
+            d["min_leds"], d["max_leds"] = self.min_leds, self.max_leds
+        return d
 
 
 class Mode:
@@ -116,6 +125,16 @@ class Plugin:
         """Run a hardware effect. mode is the Mode name; colors a list of (r, g, b); speed and brightness are 0.0-1.0."""
         raise NotImplementedError
 
+    def resize_zone(self, device_id, zone, leds):
+        """Optional: the user set the LED count of a resizable zone (zone is its index). Call devices_changed()."""
+        raise NotImplementedError
+
+    def rescan(self):
+        """Optional: the user asked to search the hardware again (for example after plugging something in).
+
+        discover() follows right after; call devices_changed() later if the search finishes in the background.
+        """
+
     def close(self):
         """LiFaCo is shutting the plugin down. Close connections."""
 
@@ -177,6 +196,12 @@ def _handle(plugin, method, params):
     if method == "set_mode":
         plugin.set_mode(params["device"], params["mode"], _rgb_list(params.get("colors") or []),
                         float(params.get("speed", 0.5)), float(params.get("brightness", 1.0)))
+        return None
+    if method == "resize_zone":
+        plugin.resize_zone(params["device"], int(params["zone"]), int(params["leds"]))
+        return None
+    if method == "rescan":
+        plugin.rescan()
         return None
     if method == "close":
         plugin.close()

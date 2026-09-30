@@ -79,6 +79,8 @@ That is the whole contract:
 | `discover()` | yes | at start, on "Rescan", after `devices_changed()`. Return a list of `Device`. |
 | `set_colors(device_id, colors)` | if the hardware can show a colour per LED | up to 20× per second while an effect runs. `colors` is a list of `(r, g, b)`, values 0–255, all zones in order. |
 | `set_mode(device_id, mode, colors, speed, brightness)` | if the device has its own effects | when the user picks one of the device's effects. `speed` and `brightness` are 0.0–1.0. |
+| `resize_zone(device_id, zone, leds)` | if a zone's LED count is set by the user | when the user changes the LED count of a resizable zone (see below). Call `devices_changed()` afterwards. |
+| `rescan()` | no | when the user clicks "Search the hardware again"; `discover()` follows. For hardware searches that take a while, call `devices_changed()` when done. |
 | `setup()` / `close()` | no | once after start / before stopping. |
 
 With `set_colors` LiFaCo draws the effects itself (static, breathing, rainbow, colour that follows a temperature)
@@ -101,6 +103,9 @@ Device(
 * `zones` split the LEDs of one device (fan header 1, fan header 2 …). `set_colors` still receives one flat list:
   zone 1's LEDs, then zone 2's, and so on.
 * `Mode(colors=n)` says how many colours the effect uses, `speed` and `brightness` say whether the sliders apply.
+* `Zone("Header", 30, min_leds=0, max_leds=120)`: for addressable headers the controller cannot know how many LEDs
+  are connected. Give both limits and LiFaCo shows a "Connected LEDs" field on the device card; it calls
+  `resize_zone()` with the zone's index when the user changes it.
 * `frame_timeout`: some devices (WLED) go back to their own effect if no colours arrive for a few seconds. Set the
   number of seconds and LiFaCo re-sends the current colours often enough. Leave it out for devices that keep colours.
 
@@ -163,7 +168,7 @@ protocol). A request looks like
     {"id": 7, "method": "set_colors", "params": {"device": "strip1", "colors": [[255,0,0], [0,255,0]]}}
 
 and the answer is `{"id": 7, "result": null}` or `{"id": 7, "error": "what went wrong"}`. The methods are `init`,
-`discover`, `set_colors`, `set_mode` and `close`. A plugin may send `{"event": "devices_changed"}` at any time.
+`discover`, `set_colors`, `set_mode`, `resize_zone`, `rescan` and `close`. A plugin may send `{"event": "devices_changed"}` at any time.
 The entry point must be a Python file, but it may start programs in other languages (declare them under
 `[requires] commands`).
 

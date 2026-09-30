@@ -2,6 +2,7 @@ import importlib.util
 import json
 import os
 import socket
+import struct
 import sys
 import threading
 import unittest
@@ -116,6 +117,53 @@ class WledTests(unittest.TestCase):
         self.assertEqual([s["id"] for s in body["seg"]], [0, 1])
         self.assertEqual(body["seg"][0]["fx"], 3)
         self.assertEqual(body["seg"][0]["col"], [[255, 0, 0]])
+
+
+def _name(text):
+    return b"".join(bytes([len(p)]) + p.encode() for p in text.split(".")) + b"\0"
+
+
+def _record(name, rtype, rdata):
+    return name + struct.pack(">HHIH", rtype, 0x8001, 120, len(rdata)) + rdata
+
+
+def mdns_reply(ip, with_address=True):
+    """An mDNS answer like the ones WLED sends: PTR, then SRV and A (compressed names)."""
+    head = struct.pack(">HHHHHH", 0, 0x8400, 0, 1, 0, 2 if with_address else 0)
+    ptr_owner = _name("_wled._tcp.local")
+    instance = b"\x04desk" + b"\xc0\x0c"                     # "desk" + pointer to _wled._tcp.local
+    body = _record(ptr_owner, 12, instance)
+    if with_address:
+        host = _name("wled-desk.local")
+        body += _record(b"\x04desk\xc0\x0c", 33, struct.pack(">HHH", 0, 0, 80) + host)
+        body += _record(host, 1, socket.inet_aton(ip))
+    return head + body
+
+
+class MdnsTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.mod = load_plugin()
+
+    def test_address_from_a_record(self):
+        self.assertEqual(self.mod.wled_address(mdns_reply("10.0.0.7"), "10.0.0.1"), "10.0.0.7")
+
+    def test_sender_without_address_record(self):
+        self.assertEqual(self.mod.wled_address(mdns_reply("10.0.0.7", with_address=False), "10.0.0.9"), "10.0.0.9")
+
+    def test_other_services_are_ignored(self):
+        packet = struct.pack(">HHHHHH", 0, 0x8400, 0, 1, 0, 0) + _record(_name("_http._tcp.local"), 12, _name("x.local"))
+        self.assertIsNone(self.mod.wled_address(packet, "10.0.0.9"))
+
+    def test_broken_packets_are_ignored(self):
+        self.assertIsNone(self.mod.wled_address(b"\x00\x01garbage", "10.0.0.9"))
+        loop = struct.pack(">HHHHHH", 0, 0x8400, 0, 1, 0, 0) + b"\xc0\x0c"
+        self.assertIsNone(self.mod.wled_address(loop, "10.0.0.9"))
+
+    def test_query_asks_for_ptr(self):
+        q = self.mod._mdns_query("_wled._tcp.local")
+        self.assertTrue(q.endswith(_name("_wled._tcp.local") + struct.pack(">HH", 12, 1)))
+        self.assertTrue(self.mod._mdns_query("_wled._tcp.local", unicast=True).endswith(struct.pack(">HH", 12, 0x8001)))
 
 
 if __name__ == "__main__":

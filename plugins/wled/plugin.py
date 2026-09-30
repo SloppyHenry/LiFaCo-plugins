@@ -2,8 +2,11 @@
 
 import json
 import re
+import select
 import socket
-import subprocess
+import struct
+import threading
+import time
 import urllib.request
 
 from lifaco_plugin import Device, Mode, Plugin, Zone, run
@@ -20,18 +23,123 @@ def http_json(host, path, body=None, timeout=3.0):
         return json.loads(resp.read(4 * 1024 * 1024))
 
 
-def scan_mdns():
-    """Addresses of WLED devices announced over mDNS (empty if avahi-browse is not installed)."""
+MDNS_GROUP, MDNS_PORT = "224.0.0.251", 5353
+SERVICE = "_wled._tcp.local"
+
+
+def _mdns_query(name, unicast=False):
+    """A DNS question for PTR records of `name` (optionally with the "answer me directly" bit)."""
+    qname = b"".join(bytes([len(p)]) + p.encode() for p in name.split(".")) + b"\0"
+    return struct.pack(">HHHHHH", 0, 0, 1, 0, 0, 0) + qname + struct.pack(">HH", 12, 0x8001 if unicast else 1)
+
+
+def _read_name(data, pos):
+    """Name at `pos` (with DNS compression); returns (name, position after it)."""
+    labels, end, jumps = [], None, 0
+    while True:
+        length = data[pos]
+        if length & 0xC0 == 0xC0:
+            if end is None:
+                end = pos + 2
+            pos = ((length & 0x3F) << 8) | data[pos + 1]
+            jumps += 1
+            if jumps > 20:
+                raise ValueError("name loop")
+            continue
+        pos += 1
+        if length == 0:
+            return ".".join(labels), (end if end is not None else pos)
+        labels.append(data[pos:pos + length].decode("utf-8", "replace"))
+        pos += length
+
+
+def mdns_answers(data):
+    """(type, name, rdata-position, rdata-length) of every record in an mDNS packet."""
+    _id, _flags, qd, an, ns, ar = struct.unpack_from(">HHHHHH", data, 0)
+    pos = 12
+    for _ in range(qd):
+        _name, pos = _read_name(data, pos)
+        pos += 4
+    out = []
+    for _ in range(an + ns + ar):
+        name, pos = _read_name(data, pos)
+        rtype, _cls, _ttl, length = struct.unpack_from(">HHIH", data, pos)
+        pos += 10
+        out.append((rtype, name.lower(), pos, length))
+        pos += length
+    return out
+
+
+def wled_address(data, sender):
+    """The IPv4 address of a WLED device in an mDNS answer, or None if the packet is about something else."""
     try:
-        out = subprocess.run(["avahi-browse", "-rtp", "_wled._tcp"], capture_output=True, text=True, timeout=8).stdout
-    except (OSError, subprocess.SubprocessError):
+        records = mdns_answers(data)
+        if not any(t == 12 and n == SERVICE for t, n, _p, _l in records):
+            return None
+        targets = set()
+        for t, _n, p, _l in records:
+            if t == 33:                                   # SRV: priority, weight, port, target
+                targets.add(_read_name(data, p + 6)[0].lower())
+        for t, n, p, length in records:
+            if t == 1 and length == 4 and (n in targets or not targets):
+                return socket.inet_ntoa(data[p:p + 4])
+    except (IndexError, struct.error, ValueError):
+        return None
+    return sender                                          # the device answered itself, without an address record
+
+
+def _group_socket():
+    """A socket on the mDNS port that hears the group (shared with avahi and other programs), or None."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if hasattr(socket, "SO_REUSEPORT"):
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        sock.bind(("", MDNS_PORT))
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
+                        socket.inet_aton(MDNS_GROUP) + socket.inet_aton("0.0.0.0"))
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
+        return sock
+    except OSError:
+        sock.close()
+        return None
+
+
+def scan_mdns(wait=2.5):
+    """Addresses of WLED devices announced over mDNS (multicast DNS, as used by WLED and the WLED app).
+
+    WLED (ESP8266/ESP32 mDNS) only answers ordinary queries sent from port 5353, and answers them to the group –
+    so the question goes out from a socket on that port. A second socket asks with the "answer me directly" bit,
+    for systems where port 5353 cannot be shared.
+    """
+    socks = []
+    try:
+        ask = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        ask.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
+        socks.append(ask)
+        group = _group_socket()
+        if group:
+            socks.append(group)
+        hosts = []
+        deadline, resend = time.monotonic() + wait, 0.0
+        while (left := deadline - time.monotonic()) > 0:
+            if time.monotonic() >= resend:                 # ask three times: multicast gets lost on Wi-Fi
+                ask.sendto(_mdns_query(SERVICE, unicast=True), (MDNS_GROUP, MDNS_PORT))
+                if group:
+                    group.sendto(_mdns_query(SERVICE), (MDNS_GROUP, MDNS_PORT))
+                resend = time.monotonic() + wait / 3
+            ready, _w, _x = select.select(socks, [], [], min(left, max(0.05, resend - time.monotonic())))
+            for s in ready:
+                data, (sender, _port) = s.recvfrom(9000)
+                address = wled_address(data, sender)
+                if address and address not in hosts:
+                    hosts.append(address)
+        return hosts
+    except OSError:
         return []
-    hosts = []
-    for line in out.splitlines():
-        parts = line.split(";")
-        if parts[0] == "=" and len(parts) > 7 and parts[2] == "IPv4" and parts[7] not in hosts:
-            hosts.append(parts[7])
-    return hosts
+    finally:
+        for s in socks:
+            s.close()
 
 
 def color_slots(fxdata):
@@ -48,17 +156,33 @@ def color_slots(fxdata):
     return min(3, len([s for s in fields[1].split(",") if s.strip() and s.strip() != "-"]))
 
 
+RESCAN_SECONDS = 60
+
+
 class Wled(Plugin):
     def setup(self):
         self.strips = {}
+        self.found = set()                    # addresses the last search returned
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.timeout = int(self.settings.get("timeout", 3))
+        self.closing = threading.Event()
+        if self.settings.get("scan", True):
+            threading.Thread(target=self._watch, daemon=True).start()
+
+    def _watch(self):
+        """Search again now and then: devices that are switched on later appear without a manual rescan."""
+        while not self.closing.wait(RESCAN_SECONDS):
+            found = set(scan_mdns())
+            if found - self.found:
+                self.devices_changed()
 
     def _hosts(self):
         hosts = [h.strip().removeprefix("http://").strip("/") for h in str(self.settings.get("hosts", "")).split(",")]
         hosts = [h for h in hosts if HOST_RE.match(h)]
         if self.settings.get("scan", True):
-            hosts += [h for h in scan_mdns() if h not in hosts]
+            found = scan_mdns()
+            self.found = set(found)
+            hosts += [h for h in found if h not in hosts]
         return hosts
 
     def discover(self):
@@ -118,6 +242,7 @@ class Wled(Plugin):
         http_json(strip["host"], "/json/state", body)
 
     def close(self):
+        self.closing.set()
         self.sock.close()
 
 

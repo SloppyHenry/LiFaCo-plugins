@@ -130,6 +130,24 @@ class OpenRgbTests(unittest.TestCase):
         while not self.server.packets.empty():
             self.assertNotEqual(self.server.packets.get()[1], 1102)       # never "save mode"
 
+    def test_resizable_zone_is_reported_and_resized(self):
+        d = self.p.discover()[0]
+        z = d.zones[0]
+        self.assertEqual((z.name, z.leds, z.to_dict()["min_leds"], z.to_dict()["max_leds"]), ("Header", 3, 0, 8))
+        changed = []
+        self.p.devices_changed = lambda: changed.append(True)
+        self.p.resize_zone(d.id, 0, 6)
+        dev, payload = self.sent(1000)
+        self.assertEqual((dev, struct.unpack("<ii", payload)), (0, (0, 6)))
+        self.assertEqual(changed, [True])
+        with self.assertRaises(ValueError):
+            self.p.resize_zone(d.id, 0, 9)
+
+    def test_rescan_asks_the_server(self):
+        self.p.discover()
+        self.p.rescan()
+        self.assertEqual(self.sent(140), (0, b""))
+
 
 if __name__ == "__main__":
     unittest.main()

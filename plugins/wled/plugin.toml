@@ -1,6 +1,6 @@
 id = "wled"
 name = "WLED"
-version = "1.0.0"
+version = "1.1.0"
 api = 1
 description = "LED strips and matrices running WLED (ESP32/ESP8266). Use WLED's 100+ built-in effects or let LiFaCo draw its own effects, for example a colour that follows the CPU temperature."
 author = "LiFaCo"
@@ -23,7 +23,7 @@ key = "scan"
 label = "Search the network automatically"
 type = "switch"
 default = true
-help = "Finds WLED devices announced over mDNS. Needs the program avahi-browse (package avahi-utils)."
+help = "Finds WLED devices on your network (mDNS) at start and every minute. Devices in another network segment must be entered above."
 
 [[settings]]
 key = "timeout"
