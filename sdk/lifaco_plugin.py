@@ -196,7 +196,10 @@ def _serve(plugin):
         except NotImplementedError:
             reply = {"id": rid, "error": f"The plugin does not support '{method}'"}
         except Exception as e:  # noqa: BLE001 – reported to LiFaCo, the plugin keeps running
-            traceback.print_exc(file=sys.stderr)
+            if os.environ.get("LIFACO_PLUGIN_DEBUG"):
+                traceback.print_exc(file=sys.stderr)     # full details only when the service runs with --verbose
+            else:
+                print(f"{type(e).__name__}: {e}", file=sys.stderr, flush=True)
             reply = {"id": rid, "error": f"{type(e).__name__}: {e}"}
         _send(reply)
         if method == "close":
