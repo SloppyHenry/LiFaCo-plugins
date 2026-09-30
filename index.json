@@ -1,0 +1,88 @@
+{
+  "format": 1,
+  "plugins": [
+    {
+      "id": "openrgb",
+      "name": "OpenRGB",
+      "version": "1.0.0",
+      "api": 1,
+      "description": "Mainboards, graphics cards, RAM, keyboards, mice, coolers and fans through an OpenRGB server. Covers ASUS Aura, Gigabyte RGB Fusion, ASRock Polychrome, Corsair, Razer, Logitech, SteelSeries and over a thousand more devices.",
+      "author": "LiFaCo",
+      "tags": [
+        "openrgb",
+        "motherboard",
+        "gpu",
+        "ram",
+        "keyboard",
+        "mouse",
+        "cooler",
+        "fan",
+        "aura",
+        "corsair",
+        "razer",
+        "asus",
+        "gigabyte",
+        "asrock"
+      ],
+      "homepage": "https://openrgb.org",
+      "permissions": {
+        "network": true,
+        "usb": [],
+        "i2c": false
+      },
+      "download": "dist/openrgb-1.0.0.zip",
+      "sha256": "1ab90a0a47e752e59518a5040d0f4d5152d2df69c056b2b6576cd65982a599c3",
+      "size": 4155
+    },
+    {
+      "id": "virtual",
+      "name": "Virtual devices",
+      "version": "1.0.0",
+      "api": 1,
+      "description": "Pretend LED devices without any hardware. Good for trying out effects, for tests and as a minimal example plugin.",
+      "author": "LiFaCo",
+      "tags": [
+        "test",
+        "demo",
+        "example",
+        "virtual"
+      ],
+      "homepage": "",
+      "permissions": {
+        "network": false,
+        "usb": [],
+        "i2c": false
+      },
+      "download": "dist/virtual-1.0.0.zip",
+      "sha256": "da562dfe35620d89a27d614a1ca723e6e087d35969ff9ae3ffb8ce33f3c650bb",
+      "size": 1200
+    },
+    {
+      "id": "wled",
+      "name": "WLED",
+      "version": "1.0.0",
+      "api": 1,
+      "description": "LED strips and matrices running WLED (ESP32/ESP8266). Use WLED's 100+ built-in effects or let LiFaCo draw its own effects, for example a colour that follows the CPU temperature.",
+      "author": "LiFaCo",
+      "tags": [
+        "wled",
+        "led strip",
+        "esp32",
+        "esp8266",
+        "network",
+        "wifi",
+        "ws2812",
+        "addressable"
+      ],
+      "homepage": "https://kno.wled.ge",
+      "permissions": {
+        "network": true,
+        "usb": [],
+        "i2c": false
+      },
+      "download": "dist/wled-1.0.0.zip",
+      "sha256": "bd3a593701f630b1cedf3ee96aae8bee7bba8b6227fafc786934a813cc190622",
+      "size": 2962
+    }
+  ]
+}

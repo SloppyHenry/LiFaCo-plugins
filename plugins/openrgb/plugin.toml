@@ -1,0 +1,30 @@
+id = "openrgb"
+name = "OpenRGB"
+version = "1.0.0"
+api = 1
+description = "Mainboards, graphics cards, RAM, keyboards, mice, coolers and fans through an OpenRGB server. Covers ASUS Aura, Gigabyte RGB Fusion, ASRock Polychrome, Corsair, Razer, Logitech, SteelSeries and over a thousand more devices."
+author = "LiFaCo"
+license = "MIT"
+homepage = "https://openrgb.org"
+tags = ["openrgb", "motherboard", "gpu", "ram", "keyboard", "mouse", "cooler", "fan", "aura", "corsair", "razer", "asus", "gigabyte", "asrock"]
+
+# OpenRGB itself talks to the hardware and needs root or udev rules for that. Run it as a background service
+# (`openrgb --server`, or the systemd service from OpenRGB 1.0). This plugin only connects to it over the network.
+[permissions]
+network = true
+
+[[settings]]
+key = "host"
+label = "OpenRGB server"
+type = "text"
+default = "127.0.0.1"
+help = "Address of the computer running the OpenRGB server"
+
+[[settings]]
+key = "port"
+label = "Port"
+type = "number"
+default = 6742
+min = 1
+max = 65535
+help = "OpenRGB's SDK port (default 6742)"

@@ -1,0 +1,19 @@
+id = "virtual"
+name = "Virtual devices"
+version = "1.0.0"
+api = 1
+description = "Pretend LED devices without any hardware. Good for trying out effects, for tests and as a minimal example plugin."
+author = "LiFaCo"
+license = "MIT"
+tags = ["test", "demo", "example", "virtual"]
+
+# No [permissions]: this plugin cannot use the network or any hardware.
+
+[[settings]]
+key = "count"
+label = "Number of virtual devices"
+type = "number"
+default = 2
+min = 1
+max = 6
+help = "How many pretend devices to create"

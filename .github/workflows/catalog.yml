@@ -1,0 +1,30 @@
+name: Catalog
+
+on:
+  push:
+    branches: [main]
+    paths: ["plugins/**", "tools/**", "tests/**", "sdk/**"]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tests
+        run: python3 -m unittest discover -s tests
+      - name: Build packages and index
+        run: python3 tools/build_index.py
+      - name: Publish (main only)
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add dist index.json
+          git diff --cached --quiet || (git commit -m "Update catalog" && git push)

@@ -1,0 +1,35 @@
+id = "wled"
+name = "WLED"
+version = "1.0.0"
+api = 1
+description = "LED strips and matrices running WLED (ESP32/ESP8266). Use WLED's 100+ built-in effects or let LiFaCo draw its own effects, for example a colour that follows the CPU temperature."
+author = "LiFaCo"
+license = "MIT"
+homepage = "https://kno.wled.ge"
+tags = ["wled", "led strip", "esp32", "esp8266", "network", "wifi", "ws2812", "addressable"]
+
+[permissions]
+network = true
+
+[[settings]]
+key = "hosts"
+label = "WLED devices"
+type = "text"
+default = ""
+help = "IP addresses or names, separated by commas, for example 192.168.1.50, wled-desk.local"
+
+[[settings]]
+key = "scan"
+label = "Search the network automatically"
+type = "switch"
+default = true
+help = "Finds WLED devices announced over mDNS. Needs the program avahi-browse (package avahi-utils)."
+
+[[settings]]
+key = "timeout"
+label = "Seconds until WLED returns to its own effect"
+type = "number"
+default = 3
+min = 1
+max = 30
+help = "How long a WLED device keeps LiFaCo's colours after LiFaCo stops sending. 1-30 seconds."
