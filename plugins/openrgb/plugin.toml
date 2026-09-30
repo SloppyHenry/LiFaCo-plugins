@@ -1,6 +1,6 @@
 id = "openrgb"
 name = "OpenRGB"
-version = "1.1.0"
+version = "1.2.0"
 api = 1
 description = "Mainboards, graphics cards, RAM, keyboards, mice, coolers and fans through an OpenRGB server. Covers ASUS Aura, Gigabyte RGB Fusion, ASRock Polychrome, Corsair, Razer, Logitech, SteelSeries and over a thousand more devices."
 author = "LiFaCo"
@@ -16,6 +16,7 @@ helpers = ["openrgb"]
 
 [permissions]
 network = true
+start = ["openrgb"]      # LiFaCo starts the OpenRGB server while this plugin is on (asks the user first)
 
 [[settings]]
 key = "host"

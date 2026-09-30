@@ -122,6 +122,7 @@ other users' files or the LiFaCo configuration and cannot write to their own cod
 | none | pure computation, its own data folder | "No special access" |
 | `network = true` | sockets (TCP/UDP) to other machines. Without it the plugin has **no network at all**. | "Use the network" |
 | `usb = ["vvvv:pppp"]` | access to exactly those USB devices (hidraw and libusb nodes), granted through a udev rule | "Access the USB device …" |
+| `start = ["name"]` | ask LiFaCo to start a built-in helper's server while the plugin is on (only `openrgb` exists; unknown names do nothing) | a line describing what is started |
 | `i2c = true` | the mainboard's SMBus | a warning that careless writes can damage hardware |
 
 The user approves the list when they switch a plugin on. If an update asks for more, the approval is asked again.

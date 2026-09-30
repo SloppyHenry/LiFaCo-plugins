@@ -4,7 +4,7 @@
     {
       "id": "openrgb",
       "name": "OpenRGB",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "api": 1,
       "description": "Mainboards, graphics cards, RAM, keyboards, mice, coolers and fans through an OpenRGB server. Covers ASUS Aura, Gigabyte RGB Fusion, ASRock Polychrome, Corsair, Razer, Logitech, SteelSeries and over a thousand more devices.",
       "author": "LiFaCo",
@@ -30,9 +30,9 @@
         "usb": [],
         "i2c": false
       },
-      "download": "dist/openrgb-1.1.0.zip",
-      "sha256": "df08a52679db8e1462f512ebd609e39ed31db754439d050223b0c3896f022501",
-      "size": 4225
+      "download": "dist/openrgb-1.2.0.zip",
+      "sha256": "aecb3cb1478c062106a69dd2e7759a5e01342981edba430626376e43f17cdf8a",
+      "size": 4262
     },
     {
       "id": "virtual",
