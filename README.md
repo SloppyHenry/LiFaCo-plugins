@@ -9,7 +9,7 @@ LiFaCo's *Settings → LED devices* page searches this catalog and installs plug
 | [`openrgb`](plugins/openrgb) | Mainboards, GPUs, RAM, keyboards, mice, coolers, fans – via an [OpenRGB](https://openrgb.org) server | needs `openrgb --server` running with hardware access; never sends "save mode" |
 | [`virtual`](plugins/virtual) | Pretend devices | for trying things out, tests and as a minimal example |
 
-Planned: `liquidctl` (AIO coolers, fan hubs), `openrazer`, `msi-mystic-light` (safe subset, tested boards only).
+AIO coolers and fan hubs (liquidctl) are built into LiFaCo, not a plugin. Planned: `openrazer`, `msi-mystic-light` (safe subset, tested boards only).
 Ideas and requests: open an issue.
 
 ## Write your own
